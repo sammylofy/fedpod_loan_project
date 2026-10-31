@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Loan #{{ loan.id }} Details - FEDPOD Cooperative{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0">Loan Application #{{ loan.id }} — {{ loan.loan_type.name }} Loan</h4>
+    <a href="{% url 'dashboard_redirect' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Loan & Credit Risk Summary -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-dark text-white">
+                <h6 class="mb-0">Loan & Automated Credit Risk Profile</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless mb-0">
+                    <tr>
+                        <th class="text-muted">Applicant Name:</th>
+                        <td class="fw-bold">{{ loan.customer.user.get_full_name }} ({{ loan.customer.user.username }})</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Monthly Income / Expenses:</th>
+                        <td>₦{{ loan.customer.monthly_income|intcomma }} / ₦{{ loan.customer.monthly_expenses|intcomma }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Principal Requested:</th>
+                        <td class="fw-bold">₦{{ loan.amount_requested|intcomma }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Duration & Annual Rate:</th>
+                        <td>{{ loan.duration_months }} Months @ {{ loan.loan_type.interest_rate }}% p.a.</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Monthly EMI:</th>
+                        <td class="fw-bold text-success">₦{{ loan.emi_amount|floatformat:2|intcomma }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Calculated Credit Score:</th>
+                        <td><span class="badge bg-primary fs-6">{{ loan.credit_score }} / 850</span></td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Evaluated Risk Level:</th>
+                        <td>
+                            {% if loan.risk_level == 'Low' %}
+                                <span class="badge bg-success">Low Risk</span>
+                            {% elif loan.risk_level == 'Medium' %}
+                                <span class="badge bg-warning text-dark">Medium Risk</span>
+                            {% else %}
+                                <span class="badge bg-danger">High Risk</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Current Loan Status:</th>
+                        <td>
+                            {% if loan.status == 'Approved' or loan.status == 'Disbursed' %}
+                                <span class="badge bg-success fs-6">{{ loan.status }}</span>
+                            {% elif loan.status == 'Pending' %}
+                                <span class="badge bg-warning text-dark fs-6">Pending</span>
+                            {% else %}
+                                <span class="badge bg-danger fs-6">Rejected</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Purpose:</th>
+                        <td>{{ loan.purpose }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval / Manager Decision Panel -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0">Approval Audit & Manager Action</h6>
+            </div>
+            <div class="card-body">
+                {% if approval %}
+                    <div class="alert alert-light border">
+                        <strong>Last Decision Remarks:</strong> {{ approval.remarks }}<br>
+                        <small class="text-muted">
+                            Processed by: {{ approval.approved_by|default:"Automated System Rule" }} on {{ approval.approval_date }}
+                        </small>
+                    </div>
+                {% endif %}
+
+                {% if is_manager %}
+                    <form method="post" action="{% url 'process_loan_decision' loan.id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Manager Review Remarks</label>
+                            <textarea name="remarks" class="form-control" rows="2" placeholder="Enter approval, rejection, or disbursement notes..."></textarea>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% if loan.status == 'Pending' %}
+                                <button type="submit" name="action" value="Approved" class="btn btn-success">
+                                    <i class="bi bi-check-circle"></i> Approve Loan
+                                </button>
+                                <button type="submit" name="action" value="Rejected" class="btn btn-danger">
+                                    <i class="bi bi-x-circle"></i> Reject Loan
+                                </button>
+                            {% endif %}
+                            {% if loan.status == 'Approved' or loan.status == 'Pending' %}
+                                <button type="submit" name="action" value="Disbursed" class="btn btn-primary fw-bold">
+                                    <i class="bi bi-cash-stack"></i> Disburse Funds & Generate Schedule
+                                </button>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% else %}
+                    <p class="text-muted small mb-0">
+                        Once your loan status is marked as <strong>Disbursed</strong> by the Cooperative Loan Manager, your monthly EMI repayment schedule appears below.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- EMI Repayment Schedule Table -->
+<!-- EMI Repayment Schedule Table -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-dark text-white py-3">
+        <h5 class="mb-0"><i class="bi bi-calendar-check me-2"></i>EMI Repayment Schedule & Self-Service Portal</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Installment #</th>
+                        <th>Due Date</th>
+                        <th>Expected EMI (₦)</th>
+                        <th>Amount Paid (₦)</th>
+                        <th>Payment Date / Ref</th>
+                        <th>Days Overdue</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rep in repayments %}
+                    <tr>
+                        <td class="fw-bold">Month {{ forloop.counter }}</td>
+                        <td>{{ rep.due_date }}</td>
+                        <td>₦{{ loan.emi_amount|floatformat:2|intcomma }}</td>
+                        <td class="fw-semibold">₦{{ rep.amount_paid|intcomma }}</td>
+                        <td>
+                            {% if rep.is_paid %}
+                                {{ rep.payment_date }}<br>
+                                <small class="text-success fw-bold">{{ rep.payment_reference|default:"Verified" }}</small>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if rep.days_overdue > 0 %}
+                                <span class="badge bg-danger">{{ rep.days_overdue }} days overdue</span>
+                            {% else %}
+                                <span class="text-muted">0 days</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if rep.is_paid %}
+                                <span class="badge bg-success">PAID ✓</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">UNPAID</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if not rep.is_paid %}
+                                <div class="d-flex flex-wrap gap-1">
+                                    <!-- Customer Self-Service Pay Button -->
+                                    <button type="button" class="btn btn-sm btn-success fw-bold" 
+                                            data-bs-toggle="modal" data-bs-target="#payModal{{ rep.id }}">
+                                        <i class="bi bi-credit-card me-1"></i> Pay Now
+                                    </button>
+
+                                    {% if is_manager %}
+                                        <a href="{% url 'record_repayment' rep.id %}" class="btn btn-sm btn-outline-primary" title="Manager Manual Override">
+                                            Record
+                                        </a>
+                                        <a href="{% url 'send_due_sms_reminder' rep.id %}" class="btn btn-sm btn-outline-dark" title="Send SMS via SMSLive247">
+                                            <i class="bi bi-chat-text"></i> SMS
+                                        </a>
+                                        <a href="{{ rep.whatsapp_reminder_url }}" target="_blank" class="btn btn-sm btn-outline-success" title="WhatsApp Reminder">
+                                            <i class="bi bi-whatsapp"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <span class="text-success small fw-bold"><i class="bi bi-check-all fs-6"></i> Paid & Cleared</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            Repayment schedule is generated automatically once the loan is <strong>Disbursed</strong>.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODALS RENDERED CLEANLY OUTSIDE THE TABLE -->
+{% for rep in repayments %}
+    {% if not rep.is_paid %}
+    <div class="modal fade" id="payModal{{ rep.id }}" tabindex="-1" aria-labelledby="payModalLabel{{ rep.id }}" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="payModalLabel{{ rep.id }}">
+                        <i class="bi bi-shield-check me-2"></i>FEDPOD Cooperative e-Payment
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="post" action="{% url 'customer_pay_installment' rep.id %}">
+                    {% csrf_token %}
+                    <div class="modal-body text-start">
+                        <div class="p-3 bg-light rounded border text-dark mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Installment:</span>
+                                <strong>Month {{ forloop.counter }} of {{ loan.duration_months }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Due Date:</span>
+                                <strong>{{ rep.due_date }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Total Payable Now:</span>
+                                <strong class="text-success fs-5">₦{{ loan.emi_amount|floatformat:2|intcomma }}</strong>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Payment Channel</label>
+                            <select name="payment_method" class="form-select" required>
+                                <option value="Debit Card (Mastercard/Visa/Verve)">ATM Debit Card (Paystack/Remita)</option>
+                                <option value="Direct Cooperative Transfer">Direct Cooperative Bank Transfer</option>
+                                <option value="FEDPOD Payroll Deduction">FEDPOD Monthly Salary Deduction Mandate</option>
+                            </select>
+                        </div>
+                        <small class="text-muted d-block">
+                            <i class="bi bi-bell-fill text-warning me-1"></i> An instant SMS receipt will be dispatched to <strong>{{ loan.customer.phone }}</strong> via SMSLive247 upon payment.
+                        </small>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success fw-bold px-4">
+                            Authorize ₦{{ loan.emi_amount|floatformat:0|intcomma }} Payment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+{% endblock %}

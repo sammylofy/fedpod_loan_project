@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Customer Dashboard - FEDPOD Cooperative{% endblock %}
+
+{% block content %}
+<!-- Header & Main Action -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div class="d-flex align-items-center">
+        {% if customer.profile_picture %}
+            <img src="{{ customer.profile_picture.url }}" alt="Profile" class="avatar-lg me-3 shadow-sm">
+        {% else %}
+            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 72px; height: 72px; font-size: 1.8rem;">
+                <i class="bi bi-person-fill"></i>
+            </div>
+        {% endif %}
+        <div>
+            <h3 class="fw-bold mb-1">Welcome, {{ request.user.get_full_name|default:request.user.username }}</h3>
+            <div class="d-flex flex-wrap gap-2">
+                {% if customer.phone_verified %}
+                    <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Phone Verified ({{ customer.phone }})</span>
+                {% else %}
+                    <a href="{% url 'verify_phone' %}" class="badge bg-warning text-dark text-decoration-none">
+                        <i class="bi bi-exclamation-circle-fill"></i> Verify Phone Now
+                    </a>
+                {% endif %}
+
+                {% if customer.bvn_verified %}
+                    <span class="badge bg-success"><i class="bi bi-shield-check"></i> BVN Verified</span>
+                {% else %}
+                    <a href="{% url 'complete_profile' %}" class="badge bg-danger text-decoration-none">
+                        <i class="bi bi-shield-exclamation"></i> BVN Unverified
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Loan Locking Logic for Apply Button -->
+    <div>
+        {% if customer.has_active_loan %}
+            <button type="button" class="btn btn-secondary fw-bold px-4 disabled shadow-sm" disabled title="You must finish paying your active loan first">
+                <i class="bi bi-lock-fill me-1"></i> Apply for New Loan (Locked)
+            </button>
+        {% else %}
+            <a href="{% url 'apply_loan' %}" class="btn btn-success fw-bold px-4 shadow-sm">
+                <i class="bi bi-plus-circle me-1"></i> Apply for New Loan
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Active Running Loan Alert Banner -->
+{% if customer.has_active_loan %}
+    <div class="alert alert-warning border-start border-warning border-4 shadow-sm mb-4">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-shield-exclamation fs-3 me-3 text-warning"></i>
+            <div>
+                <h6 class="fw-bold mb-1 text-dark">Active Loan Policy In Effect</h6>
+                <p class="mb-0 small text-dark">
+                    You currently have an active cooperative loan or pending application. Under FEDPOD Cooperative credit regulations, new loan applications are locked until all outstanding installments are fully paid and cleared.
+                </p>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Profile Completion Progress Bar (Zero CSS Redlines) -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold">Cooperative Financial & KYC Profile Completion</span>
+            <a href="{% url 'complete_profile' %}" class="btn btn-sm btn-outline-primary">Update Profile & KYC</a>
+        </div>
+        <div class="progress" style="height: 22px;">
+            <div id="profileProgressBar"
+                 class="progress-bar {% if customer.profile_completion_percentage == 100 %}bg-success{% else %}bg-warning text-dark{% endif %} fw-bold"
+                 role="progressbar"
+                 data-width="{{ customer.profile_completion_percentage }}">
+                {{ customer.profile_completion_percentage }}% Complete
+            </div>
+        </div>
+        {% if customer.profile_completion_percentage < 100 %}
+            <small class="text-danger mt-2 d-block">
+                <i class="bi bi-exclamation-triangle-fill"></i> Complete 100% of your profile (including Phone OTP & BVN Verification) to unlock loan applications.
+            </small>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Financial Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase small">Monthly Net Income</h6>
+                <h3 class="fw-bold">₦{{ customer.monthly_income|intcomma }}</h3>
+                <small class="text-muted">Monthly Expenses: ₦{{ customer.monthly_expenses|intcomma }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase small">Total Active Debt (Unpaid EMIs)</h6>
+                <h3 class="fw-bold text-danger">₦{{ total_debt|intcomma }}</h3>
+                <small class="text-muted">Across all disbursed loans</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase small">Next Repayment Due Date</h6>
+                {% if next_due_date %}
+                    <h3 class="fw-bold text-primary">{{ next_due_date }}</h3>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <small class="fw-semibold">EMI: ₦{{ next_due_amount|floatformat:2|intcomma }}</small>
+                        <a href="{% url 'loan_detail' next_repayment.loan.id %}" class="btn btn-sm btn-success py-0">Pay Now</a>
+                    </div>
+                {% else %}
+                    <h4 class="fw-bold text-success mt-2">No Pending Dues</h4>
+                    <small class="text-muted">You have no active unpaid installments</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- My Loans Table -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-dark text-white py-3">
+        <h5 class="mb-0"><i class="bi bi-journal-text me-2 text-warning"></i>My Loan Applications & Repayment Schedules</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Loan ID</th>
+                        <th>Loan Type</th>
+                        <th>Principal (₦)</th>
+                        <th>Duration</th>
+                        <th>Monthly EMI (₦)</th>
+                        <th>Credit Score</th>
+                        <th>Risk Level</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in my_loans %}
+                    <tr>
+                        <td class="fw-bold">#{{ loan.id }}</td>
+                        <td class="fw-semibold text-success">{{ loan.loan_type.name }}</td>
+                        <td>₦{{ loan.amount_requested|intcomma }}</td>
+                        <td>{{ loan.duration_months }} mos</td>
+                        <td class="fw-semibold">₦{{ loan.emi_amount|floatformat:2|intcomma }}</td>
+                        <td><span class="badge bg-secondary">{{ loan.credit_score }}</span></td>
+                        <td>
+                            {% if loan.risk_level == 'Low' %}
+                                <span class="badge bg-success">Low Risk</span>
+                            {% elif loan.risk_level == 'Medium' %}
+                                <span class="badge bg-warning text-dark">Medium Risk</span>
+                            {% else %}
+                                <span class="badge bg-danger">High Risk</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if loan.status == 'Approved' or loan.status == 'Disbursed' %}
+                                <span class="badge bg-success">{{ loan.status }}</span>
+                            {% elif loan.status == 'Pending' %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            {% else %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'loan_detail' loan.id %}" class="btn btn-sm btn-primary">
+                                {% if loan.status == 'Disbursed' %}Pay / View Schedule{% else %}View Details{% endif %}
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            {% if customer.has_active_loan %}
+                                You have a running loan awaiting settlement.
+                            {% else %}
+                                You have no active loans. Click
+                                <a href="{% url 'apply_loan' %}" class="fw-bold text-success text-decoration-underline">Apply for New Loan</a>
+                                to begin.
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const bar = document.getElementById("profileProgressBar");
+        if (bar) {
+            bar.style.width = bar.getAttribute("data-width") + "%";
+        }
+    });
+</script>
+{% endblock %}

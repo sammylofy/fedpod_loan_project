@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+<!-- Hero Banner -->
+<div class="p-4 p-md-5 mb-4 rounded-3 shadow-sm card-hero">
+    <div class="row align-items-center">
+        <div class="col-lg-8 py-2">
+            <span class="badge bg-primary px-3 py-2 mb-2">FEDERAL POLYTECHNIC OHODO (FEDPOD)</span>
+            <h1 class="display-5 fw-bold text-hero-title mb-2">Automated Cooperative Loan & Credit Risk System</h1>
+            <p class="col-md-11 fs-5 text-hero-muted mb-4 lead">
+                Replacing manual paper files with instant credit risk assessment, automated Equated Monthly Installment (EMI) computation, and real-time repayment tracking for FEDPOD staff and cooperative members.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'dashboard_redirect' %}" class="btn btn-primary btn-lg px-4 shadow">
+                        <i class="bi bi-speedometer2 me-2"></i> Go to My Dashboard
+                    </a>
+                {% else %}
+                    <a href="{% url 'register' %}" class="btn btn-warning btn-lg px-4 fw-bold text-dark shadow">
+                        <i class="bi bi-person-plus me-2"></i> Register as Member
+                    </a>
+                    <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg px-4">
+                        <i class="bi bi-box-arrow-in-right me-2"></i> Member Login
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-4 d-none d-lg-block text-center">
+            <img src="{% static 'images/fedpod_logo.jpg' %}" alt="FEDPOD EMBLEM" class="img-fluid" style="max-height: 220px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.25));">
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Loan Types Table -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100 border-0">
+            <div class="card-header text-white py-3 d-flex justify-content-between align-items-center" style="background-color: var(--fedpod-primary) !important;">
+                <h5 class="mb-0"><i class="bi bi-card-checklist me-2 text-warning"></i>FEDPOD Cooperative Loan Products</h5>
+                <span class="badge bg-warning text-dark fw-bold">5 Schemes Available</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Loan Category</th>
+                                <th>Interest Rate (p.a.)</th>
+                                <th>Max Amount (₦)</th>
+                                <th>Max Tenure</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lt in loan_types %}
+                            <tr>
+                                <td class="fw-bold text-primary">{{ lt.name }} Loan</td>
+                                <td><span class="badge bg-info text-dark">{{ lt.interest_rate }}%</span></td>
+                                <td class="fw-semibold">₦{{ lt.max_amount|intcomma }}</td>
+                                <td>{{ lt.max_duration_months }} Months</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">
+                                    No loan types seeded yet. Run <code>python manage.py seed_loantypes</code>.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="alert alert-light border mt-3 mb-0 small">
+                    <strong>Credit Scoring Engine:</strong> Applications are evaluated using your Monthly Income, Disposable Income, and Loan-to-Income Multiplier to calculate a Credit Score between <strong>300 and 850</strong>.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMI Calculator -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100 border-0">
+            <div class="card-header text-white py-3" style="background-color: var(--fedpod-accent) !important;">
+                <h5 class="mb-0"><i class="bi bi-calculator me-2"></i>Interactive EMI Calculator</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">Estimate your monthly repayment installment before applying.</p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Loan Amount (₦)</label>
+                    <input type="number" id="calcAmount" class="form-control" value="300000" min="5000" step="5000">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Annual Interest Rate (%)</label>
+                    <select id="calcRate" class="form-select">
+                        {% for lt in loan_types %}
+                            <option value="{{ lt.interest_rate }}">{{ lt.name }} Loan ({{ lt.interest_rate }}% p.a.)</option>
+                        {% empty %}
+                            <option value="10">Personal Loan (10% p.a.)</option>
+                            <option value="8">Gold Loan (8% p.a.)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Duration (Months)</label>
+                    <input type="number" id="calcTenure" class="form-control" value="12" min="1" max="60">
+                </div>
+                <button type="button" onclick="computeEMI()" class="btn btn-dark w-100 mb-3 text-white py-2 fw-semibold" style="background-color: var(--fedpod-primary) !important;">
+                    Calculate Monthly EMI
+                </button>
+
+                <div class="p-3 bg-light rounded border text-center">
+                    <span class="text-muted d-block small mb-1">Estimated Monthly Installment (EMI)</span>
+                    <h3 class="fw-bold text-success mb-1" id="emiDisplay">₦0.00</h3>
+                    <small class="text-secondary" id="totalPayableDisplay">Total Payable: ₦0.00</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function computeEMI() {
+    const P = parseFloat(document.getElementById('calcAmount').value) || 0;
+    const annualRate = parseFloat(document.getElementById('calcRate').value) || 0;
+    const n = parseInt(document.getElementById('calcTenure').value) || 1;
+
+    if (P <= 0 || n <= 0) {
+        document.getElementById('emiDisplay').innerText = "Invalid Input";
+        return;
+    }
+
+    const r = annualRate / 12 / 100;
+    let emi = 0;
+    if (r === 0) {
+        emi = P / n;
+    } else {
+        const factor = Math.pow(1 + r, n);
+        emi = (P * r * factor) / (factor - 1);
+    }
+
+    const totalPayable = emi * n;
+
+    document.getElementById('emiDisplay').innerText = '₦' + emi.toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('totalPayableDisplay').innerText = 'Total Payable: ₦' + totalPayable.toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+document.addEventListener('DOMContentLoaded', computeEMI);
+</script>
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Apply for Loan - FEDPOD Cooperative{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-success text-white py-3">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-plus me-2"></i>Cooperative Loan Application Form</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" id="loanAppForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Select Loan Type</label>
+                        {{ form.loan_type }}
+                        {% if form.loan_type.errors %}
+                            <div class="text-danger small mt-1 fw-bold">{{ form.loan_type.errors|striptags }}</div>
+                        {% endif %}
+                        <small id="loanTypeRuleBadge" class="text-primary fw-semibold d-block mt-1"></small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Amount Requested (₦)</label>
+                        {{ form.amount_requested }}
+                        <small id="maxAmountHint" class="text-muted"></small>
+                        {% if form.amount_requested.errors %}
+                            <div class="text-danger small mt-1 fw-bold">{{ form.amount_requested.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Repayment Duration (Months)</label>
+                        {{ form.duration_months }}
+                        <small id="maxDurationHint" class="text-muted"></small>
+                        {% if form.duration_months.errors %}
+                            <div class="text-danger small mt-1 fw-bold">{{ form.duration_months.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Purpose of Loan</label>
+                        {{ form.purpose }}
+                        {% if form.purpose.errors %}
+                            <div class="text-danger small mt-1 fw-bold">{{ form.purpose.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100 py-2 fw-bold">
+                        <i class="bi bi-cpu me-1"></i> Submit & Run Credit Risk Evaluation
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-dark text-white">
+                <h6 class="mb-0">Your Verified Financial Snapshot</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Monthly Income:</span>
+                        <strong>₦{{ customer.monthly_income|intcomma }}</strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Monthly Expenses:</span>
+                        <strong>₦{{ customer.monthly_expenses|intcomma }}</strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Phone & BVN Status:</span>
+                        <span class="badge bg-success">Verified ✓</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0">Strict Loan Product Limits</h6>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr class="table-light">
+                            <th>Type</th>
+                            <th>Rate</th>
+                            <th>Max Limit</th>
+                            <th>Max Months</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lt in loan_types %}
+                        <tr>
+                            <td class="fw-semibold">{{ lt.name }}</td>
+                            <td>{{ lt.interest_rate }}%</td>
+                            <td>₦{{ lt.max_amount|intcomma }}</td>
+                            <td>{{ lt.max_duration_months }} mos</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Map each LoanType ID to its strict max_amount and max_duration_months
+    const LOAN_LIMITS = {
+        {% for lt in loan_types %}
+        "{{ lt.id }}": {
+            name: "{{ lt.name }}",
+            rate: {{ lt.interest_rate }},
+            maxAmount: {{ lt.max_amount }},
+            maxMonths: {{ lt.max_duration_months }}
+        },
+        {% endfor %}
+    };
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const selectEl = document.getElementById("id_loan_type");
+        const amountEl = document.getElementById("id_amount_requested");
+        const durationEl = document.getElementById("id_duration_months");
+        const badgeEl = document.getElementById("loanTypeRuleBadge");
+        const amountHint = document.getElementById("maxAmountHint");
+        const durationHint = document.getElementById("maxDurationHint");
+
+        function enforceLimits() {
+            const selectedId = selectEl.value;
+            const rules = LOAN_LIMITS[selectedId];
+            if (rules) {
+                amountEl.setAttribute("max", rules.maxAmount);
+                durationEl.setAttribute("max", rules.maxMonths);
+                badgeEl.innerText = `${rules.name} Loan Selected: ${rules.rate}% p.a. | Max ₦${rules.maxAmount.toLocaleString()} | Max ${rules.maxMonths} Months`;
+                amountHint.innerText = `Maximum allowed for ${rules.name} Loan: ₦${rules.maxAmount.toLocaleString()}`;
+                durationHint.innerText = `Maximum allowed tenure for ${rules.name} Loan: ${rules.maxMonths} months`;
+            } else {
+                badgeEl.innerText = "";
+                amountHint.innerText = "";
+                durationHint.innerText = "";
+            }
+        }
+
+        selectEl.addEventListener("change", enforceLimits);
+        enforceLimits();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,264 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FEDPOD Cooperative Loan System{% endblock %}</title>
+    <!-- Prevent theme flash on load -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('fedpod_theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --fedpod-primary: #0a3d82; /* Deep Institutional Blue */
+            --fedpod-primary-grad: linear-gradient(135deg, #093570 0%, #0d4fa3 100%);
+            --fedpod-gold: #ffb703; /* Vibrant Gold */
+            --fedpod-accent: #118ab2; /* Sapphire Blue */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+
+        /* Light Mode Styles */
+        [data-bs-theme="light"] body {
+            background-color: #f0f4f8;
+            color: #1e293b;
+        }
+        [data-bs-theme="light"] .navbar-fedpod {
+            background: var(--fedpod-primary-grad);
+        }
+        [data-bs-theme="light"] .card-hero {
+            background: #ffffff;
+            border-left: 6px solid var(--fedpod-primary);
+        }
+        [data-bs-theme="light"] .text-hero-title {
+            color: #0f172a;
+        }
+        [data-bs-theme="light"] .text-hero-muted {
+            color: #64748b !important;
+        }
+
+        /* Dark Mode Styles - Fully Restyled to prevent missing/low contrast text */
+        [data-bs-theme="dark"] body {
+            background-color: #0f1319;
+            color: #f8fafc;
+        }
+        [data-bs-theme="dark"] .navbar-fedpod {
+            background: linear-gradient(135deg, #07254f 0%, #0b3773 100%);
+            border-bottom: 2px solid #0d4fa3;
+        }
+        [data-bs-theme="dark"] .card {
+            background-color: #18202c;
+            border-color: #2d3b50;
+        }
+        [data-bs-theme="dark"] .card-hero {
+            background-color: #151c27;
+            border-left: 6px solid var(--fedpod-gold);
+            border-top: 1px solid #2d3b50;
+            border-right: 1px solid #2d3b50;
+            border-bottom: 1px solid #2d3b50;
+        }
+        [data-bs-theme="dark"] .text-hero-title {
+            color: #f8fafc;
+        }
+        [data-bs-theme="dark"] .text-hero-muted {
+            color: #cbd5e1 !important; /* Extremely high contrast for dark mode */
+        }
+        [data-bs-theme="dark"] .table {
+            --bs-table-bg: #18202c;
+            --bs-table-striped-bg: #1e293b;
+            color: #f8fafc;
+        }
+        [data-bs-theme="dark"] .table-light {
+            --bs-table-bg: #1e293b;
+            color: #ffffff;
+        }
+        [data-bs-theme="dark"] .bg-light, [data-bs-theme="dark"] .alert-light {
+            background-color: #151c27 !important;
+            border-color: #2d3b50 !important;
+            color: #cbd5e1 !important;
+        }
+
+        /* Custom UI Elements */
+        .navbar-fedpod .logo-img {
+            height: 46px;
+            width: auto;
+            transition: transform 0.3s ease;
+        }
+        .navbar-fedpod .logo-img:hover {
+            transform: scale(1.05);
+        }
+        .avatar-nav {
+            width: 34px;
+            height: 34px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid var(--fedpod-gold);
+        }
+        .avatar-lg {
+            width: 76px;
+            height: 76px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 3px solid var(--fedpod-primary);
+        }
+        .footer {
+            margin-top: auto;
+            background-color: #0b111a;
+            color: #94a3b8;
+            border-top: 1px solid #1e293b;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark navbar-fedpod shadow-sm no-print py-2">
+    <div class="container">
+        <a class="navbar-brand fw-bold d-flex align-items-center" href="{% url 'landing' %}">
+            <img src="{% static 'images/fedpod_logo.jpg' %}" alt="FEDPOD LOGO" class="logo-img me-2">
+            <div class="lh-sm">
+                <span class="fs-5 d-block text-white" style="letter-spacing: 0.5px;">FEDPOD COOPERATIVE</span>
+                <span class="fs-7 d-block text-warning small opacity-75 fw-normal text-gold" style="font-size: 0.725rem;">Ohodo, Enugu State</span>
+            </div>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#fedpodNav" aria-controls="fedpodNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="fedpodNav">
+            <ul class="navbar-nav ms-auto align-items-lg-center gap-2">
+                <li class="nav-item">
+                    <a class="nav-link text-white-50" href="{% url 'landing' %}">Home</a>
+                </li>
+                {% if user.is_authenticated %}
+                    {% if user.is_staff or user.is_superuser %}
+                        <li class="nav-item">
+                            <a class="nav-link text-warning fw-semibold" href="{% url 'manager_dashboard' %}">
+                                <i class="bi bi-speedometer2"></i> Manager Portal
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="{% url 'reports' %}">
+                                <i class="bi bi-file-earmark-bar-graph"></i> Financial Reports
+                            </a>
+                        </li>
+                        {% if user.is_superuser %}
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/admin/">
+                                <i class="bi bi-gear"></i> Admin Panel
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link text-warning fw-semibold" href="{% url 'customer_dashboard' %}">
+                                <i class="bi bi-person-badge"></i> My Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="{% url 'apply_loan' %}">
+                                <i class="bi bi-cash-coin"></i> Apply for Loan
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="{% url 'complete_profile' %}">
+                                <i class="bi bi-person-lines-fill"></i> Profile & Verification
+                            </a>
+                        </li>
+                    {% endif %}
+                    <li class="nav-item ms-lg-2 d-flex align-items-center">
+                        {% if user.customer_profile.profile_picture %}
+                            <img src="{{ user.customer_profile.profile_picture.url }}" alt="Avatar" class="avatar-nav me-2 shadow-sm">
+                        {% endif %}
+                        <a class="btn btn-outline-light btn-sm px-3 border-secondary-subtle" href="{% url 'logout' %}">
+                            <i class="bi bi-box-arrow-right"></i> Logout ({{ user.username }})
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="nav-item ms-lg-2">
+                        <a class="btn btn-outline-light btn-sm px-3 border-secondary-subtle" href="{% url 'login' %}">Member Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-warning btn-sm px-3 fw-bold text-dark btn-gold" href="{% url 'register' %}">Join Cooperative</a>
+                    </li>
+                {% endif %}
+
+                <!-- Light / Dark Theme Toggle -->
+                <li class="nav-item ms-lg-2">
+                    <button type="button" id="themeToggleBtn" class="btn btn-sm btn-outline-warning text-white-50 border-0" title="Toggle Dark/Light Theme">
+                        <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-3 no-print">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<main class="container my-4">
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="footer py-4 no-print mt-auto">
+    <div class="container text-center">
+        <p class="mb-1 fw-semibold text-white">Federal Polytechnic Ohodo (FEDPOD) Staff Multipurpose Cooperative Society</p>
+        <small class="text-white-50">Automated Loan Management System with Credit Risk Evaluation &copy; 2026. All Rights Reserved.</small>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const htmlEl = document.documentElement;
+        const toggleBtn = document.getElementById("themeToggleBtn");
+        const themeIcon = document.getElementById("themeIcon");
+
+        function updateIcon(theme) {
+            if (theme === "dark") {
+                themeIcon.className = "bi bi-sun-fill text-warning";
+            } else {
+                themeIcon.className = "bi bi-moon-stars-fill text-white";
+            }
+        }
+
+        updateIcon(htmlEl.getAttribute("data-bs-theme"));
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener("click", function () {
+                const current = htmlEl.getAttribute("data-bs-theme");
+                const next = current === "dark" ? "light" : "dark";
+                htmlEl.setAttribute("data-bs-theme", next);
+                localStorage.setItem("fedpod_theme", next);
+                updateIcon(next);
+            });
+        }
+    });
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Credit Evaluation Result - FEDPOD Cooperative{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow border-0 text-center p-4">
+            <div class="card-body">
+                <span class="badge bg-dark mb-2">AUTOMATED CREDIT RISK DECISION ENGINE</span>
+                <h2 class="fw-bold mb-3">
+                    Your Credit Score is <span class="text-primary">{{ loan.credit_score }}</span>,
+                    EMI is <span class="text-success">₦{{ loan.emi_amount|floatformat:2|intcomma }}</span> per month,
+                    Risk Level <span class="{% if loan.risk_level == 'Low' %}text-success{% elif loan.risk_level == 'Medium' %}text-warning{% else %}text-danger{% endif %}">{{ loan.risk_level }}</span>
+                </h2>
+
+                <div class="my-4 p-4 rounded bg-light border">
+                    <h5 class="fw-bold">Application Decision Status:
+                        {% if loan.status == 'Approved' %}
+                            <span class="badge bg-success fs-6">AUTO-APPROVED (Awaiting Disbursement)</span>
+                        {% elif loan.status == 'Pending' %}
+                            <span class="badge bg-warning text-dark fs-6">PENDING LOAN MANAGER REVIEW</span>
+                        {% else %}
+                            <span class="badge bg-danger fs-6">AUTO-REJECTED (High Credit Risk)</span>
+                        {% endif %}
+                    </h5>
+                    <p class="text-muted mb-0 mt-2">
+                        Loan Type: <strong>{{ loan.loan_type.name }} Loan ({{ loan.loan_type.interest_rate }}% p.a.)</strong> |
+                        Principal: <strong>₦{{ loan.amount_requested|intcomma }}</strong> |
+                        Duration: <strong>{{ loan.duration_months }} Months</strong>
+                    </p>
+                </div>
+
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="{% url 'loan_detail' loan.id %}" class="btn btn-dark px-4">
+                        <i class="bi bi-eye me-1"></i> View Full Loan Details
+                    </a>
+                    <a href="{% url 'customer_dashboard' %}" class="btn btn-outline-success px-4">
+                        Return to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

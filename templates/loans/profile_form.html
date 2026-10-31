@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}Complete Profile & KYC - FEDPOD Cooperative{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Left Column: Main Profile & Picture Form -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white py-3">
+                <h5 class="mb-0"><i class="bi bi-person-vcard me-2 text-warning"></i>Cooperative Member KYC & Financial Profile</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-12 d-flex align-items-center gap-3 mb-2">
+                            {% if customer.profile_picture %}
+                                <img src="{{ customer.profile_picture.url }}" alt="Avatar" class="avatar-lg">
+                            {% else %}
+                                <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width: 72px; height: 72px; font-size: 1.8rem;">
+                                    <i class="bi bi-camera"></i>
+                                </div>
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                <label class="form-label fw-semibold mb-1">Upload Passport / Profile Photograph</label>
+                                {{ form.profile_picture }}
+                                <div class="text-danger small">{{ form.profile_picture.errors|striptags }}</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Phone Number (SMS/WhatsApp)</label>
+                            {{ form.phone }}
+                            <div class="text-danger small">{{ form.phone.errors|striptags }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Bank Verification Number (BVN)</label>
+                            {{ form.bvn }}
+                            <small class="text-muted d-block">11 digits starting with <code>22</code></small>
+                            <div class="text-danger small">{{ form.bvn.errors|striptags }}</div>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-semibold">Employment Category at FEDPOD</label>
+                            {{ form.employment_status }}
+                            <div class="text-danger small">{{ form.employment_status.errors|striptags }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Monthly Net Income (₦)</label>
+                            {{ form.monthly_income }}
+                            <div class="text-danger small">{{ form.monthly_income.errors|striptags }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Monthly Expenses (₦)</label>
+                            {{ form.monthly_expenses }}
+                            <div class="text-danger small">{{ form.monthly_expenses.errors|striptags }}</div>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-semibold">Residential / Office Address</label>
+                            {{ form.address }}
+                            <div class="text-danger small">{{ form.address.errors|striptags }}</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex justify-content-between">
+                        <a href="{% url 'customer_dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+                        <button type="submit" class="btn btn-success px-4 fw-bold">
+                            <i class="bi bi-save me-1"></i> Save Profile Details
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Real-Time Phone OTP & BVN Verification Center -->
+    <div class="col-lg-5">
+        <!-- Card 1: Phone OTP Verification -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-phone-vibrate me-2"></i>Step 1: Phone OTP Verification</h6>
+                {% if customer.phone_verified %}
+                    <span class="badge bg-light text-success fw-bold">VERIFIED ✓</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark">UNVERIFIED</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-2">
+                    Registered Phone: <strong>{{ customer.phone|default:"Not entered yet" }}</strong>
+                </p>
+                {% if customer.phone_verified %}
+                    <div class="alert alert-success small mb-0">
+                        <i class="bi bi-check-circle-fill me-1"></i> Your phone number has been verified via OTP. You will receive SMSLive247 alerts for loan disbursements and due dates.
+                    </div>
+                {% else %}
+                    <p class="small mb-3">We send a 6-digit OTP code via <strong>SMSLive247</strong> to confirm ownership of your mobile number.</p>
+                    <a href="{% url 'verify_phone' %}" class="btn btn-primary w-100 fw-bold">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Send & Verify Phone OTP Code
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Card 2: BVN Identity Verification -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-fingerprint me-2"></i>Step 2: NIBSS BVN Verification</h6>
+                {% if customer.bvn_verified %}
+                    <span class="badge bg-light text-success fw-bold">VERIFIED ✓</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark">UNVERIFIED</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-3">
+                    Verifies that your 11-digit BVN (starting with <code>22</code>) is valid, unique, and matches your cooperative identity.
+                </p>
+                <form method="post" action="{% url 'verify_bvn' %}">
+                    {% csrf_token %}
+                    <div class="input-group mb-3">
+                        <input type="text" name="bvn" class="form-control" maxlength="11" value="{{ customer.bvn }}" placeholder="Enter 11-digit BVN (e.g. 22123456789)" required>
+                        <button class="btn btn-dark fw-bold" type="submit">
+                            <i class="bi bi-shield-check me-1"></i> Verify BVN
+                        </button>
+                    </div>
+                </form>
+                {% if customer.bvn_verified %}
+                    <div class="alert alert-success small mb-0">
+                        <i class="bi bi-patch-check-fill me-1"></i> BVN <strong>{{ customer.bvn }}</strong> is verified for <strong>{{ request.user.get_full_name|upper }}</strong>.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Loan Manager Portal - FEDPOD Cooperative{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0">FEDPOD Cooperative Loan Manager Dashboard</h3>
+        <span class="text-muted">Credit Risk Evaluation, Approval Workflow & Delinquency Monitoring</span>
+    </div>
+    <a href="{% url 'reports' %}" class="btn btn-dark">
+        <i class="bi bi-printer me-1"></i> View Executive Summary Report
+    </a>
+</div>
+
+<!-- 4 Summary KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-primary text-white">
+            <div class="card-body">
+                <h6 class="text-uppercase small">Total Applications</h6>
+                <h2 class="fw-bold mb-0">{{ total_count }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-warning text-dark">
+            <div class="card-body">
+                <h6 class="text-uppercase small fw-bold">Pending Review</h6>
+                <h2 class="fw-bold mb-0">{{ pending_count }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-success text-white">
+            <div class="card-body">
+                <h6 class="text-uppercase small">Approved / Disbursed</h6>
+                <h2 class="fw-bold mb-0">{{ approved_count }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-danger text-white">
+            <div class="card-body">
+                <h6 class="text-uppercase small">Total Overdue Installments</h6>
+                <h2 class="fw-bold mb-0">{{ overdue_count }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Table 1: Pending Loans Requiring Manager Review -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-dark text-white py-3">
+        <h5 class="mb-0"><i class="bi bi-hourglass-split me-2 text-warning"></i>Pending Loan Applications (Awaiting Credit Decision)</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Applicant</th>
+                        <th>Income (₦)</th>
+                        <th>Loan Type</th>
+                        <th>Requested (₦)</th>
+                        <th>EMI (₦)</th>
+                        <th>Credit Score</th>
+                        <th>Risk Level</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in pending_loans %}
+                    <tr>
+                        <td class="fw-bold">#{{ loan.id }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                {% if loan.customer.profile_picture %}
+                                    <img src="{{ loan.customer.profile_picture.url }}" class="avatar-nav me-2" alt="Avatar">
+                                {% endif %}
+                                <div>
+                                    <div class="fw-semibold">{{ loan.customer.user.get_full_name|default:loan.customer.user.username }}</div>
+                                    <small class="text-muted">{{ loan.customer.phone }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>₦{{ loan.customer.monthly_income|intcomma }}</td>
+                        <td><span class="fw-semibold text-success">{{ loan.loan_type.name }}</span> ({{ loan.duration_months }}m)</td>
+                        <td class="fw-bold">₦{{ loan.amount_requested|intcomma }}</td>
+                        <td>₦{{ loan.emi_amount|floatformat:2|intcomma }}</td>
+                        <td><span class="badge bg-primary">{{ loan.credit_score }}</span></td>
+                        <td>
+                            {% if loan.risk_level == 'Low' %}
+                                <span class="badge bg-success">Low</span>
+                            {% elif loan.risk_level == 'Medium' %}
+                                <span class="badge bg-warning text-dark">Medium</span>
+                            {% else %}
+                                <span class="badge bg-danger">High</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'loan_detail' loan.id %}" class="btn btn-sm btn-outline-secondary">View</a>
+                                <form method="post" action="{% url 'process_loan_decision' loan.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="remarks" value="Approved by Loan Manager from dashboard.">
+                                    <button type="submit" name="action" value="Approved" class="btn btn-sm btn-success">Approve</button>
+                                </form>
+                                <form method="post" action="{% url 'process_loan_decision' loan.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="remarks" value="Rejected by Loan Manager from dashboard.">
+                                    <button type="submit" name="action" value="Rejected" class="btn btn-sm btn-danger">Reject</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-3 text-muted">No pending applications awaiting review.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Table 2: Approved Loans Ready for Disbursement -->
+{% if approved_loans %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-success text-white py-3">
+        <h5 class="mb-0"><i class="bi bi-cash-coin me-2"></i>Approved Loans Awaiting Disbursement</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Member</th>
+                        <th>Loan Type</th>
+                        <th>Principal (₦)</th>
+                        <th>Monthly EMI (₦)</th>
+                        <th>Score</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in approved_loans %}
+                    <tr>
+                        <td>#{{ loan.id }}</td>
+                        <td>{{ loan.customer.user.get_full_name|default:loan.customer.user.username }}</td>
+                        <td>{{ loan.loan_type.name }} ({{ loan.duration_months }}m)</td>
+                        <td>₦{{ loan.amount_requested|intcomma }}</td>
+                        <td>₦{{ loan.emi_amount|floatformat:2|intcomma }}</td>
+                        <td><span class="badge bg-success">{{ loan.credit_score }}</span></td>
+                        <td>
+                            <form method="post" action="{% url 'process_loan_decision' loan.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="remarks" value="Disbursed funds and generated EMI schedule.">
+                                <button type="submit" name="action" value="Disbursed" class="btn btn-sm btn-primary fw-bold">
+                                    <i class="bi bi-send-check me-1"></i> Disburse & Send SMS Alert
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Table 3: Delinquency Report -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-dark text-white py-3">
+        <h5 class="mb-0"><i class="bi bi-exclamation-octagon me-2 text-danger"></i>Delinquency Classification Report (Disbursed Loans)</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small">
+            Classifies active loans by overdue days: <strong>Performing</strong> (0 days), <strong>Watch</strong> (1–30 days), <strong>Substandard</strong> (31–180 days), <strong>Doubtful</strong> (181–360 days), and <strong>Loss</strong> (&gt;360 days).
+        </p>
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Classification Band</th>
+                        <th>Loan ID</th>
+                        <th>Borrower</th>
+                        <th>Loan Type</th>
+                        <th>Principal (₦)</th>
+                        <th>Max Days Overdue</th>
+                        <th>Unpaid Installments</th>
+                        <th>Manage / Notify</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category, items in delinquency_groups.items %}
+                        {% for item in items %}
+                        <tr>
+                            <td>
+                                {% if category == 'Performing' %}
+                                    <span class="badge bg-success">Performing (0d)</span>
+                                {% elif category == 'Watch' %}
+                                    <span class="badge bg-info text-dark">Watch (1-30d)</span>
+                                {% elif category == 'Substandard' %}
+                                    <span class="badge bg-warning text-dark">Substandard (31-180d)</span>
+                                {% elif category == 'Doubtful' %}
+                                    <span class="badge bg-danger">Doubtful (181-360d)</span>
+                                {% else %}
+                                    <span class="badge bg-dark">Loss (&gt;360d)</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold">#{{ item.loan.id }}</td>
+                            <td>{{ item.loan.customer.user.get_full_name|default:item.loan.customer.user.username }}</td>
+                            <td>{{ item.loan.loan_type.name }}</td>
+                            <td>₦{{ item.loan.amount_requested|intcomma }}</td>
+                            <td class="fw-bold {% if item.max_overdue_days > 0 %}text-danger{% endif %}">
+                                {{ item.max_overdue_days }} days
+                            </td>
+                            <td>{{ item.unpaid_count }} remaining</td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'loan_detail' item.loan.id %}" class="btn btn-sm btn-outline-primary">
+                                        Schedule / Pay
+                                    </a>
+                                    <a href="{{ item.whatsapp_url }}" target="_blank" class="btn btn-sm btn-success" title="Send WhatsApp Alert">
+                                        <i class="bi bi-whatsapp"></i> Alert
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% endfor %}
+                    {% if not disbursed_loans %}
+                    <tr>
+                        <td colspan="8" class="text-center py-3 text-muted">
+                            No disbursed loans currently active in the portfolio.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
